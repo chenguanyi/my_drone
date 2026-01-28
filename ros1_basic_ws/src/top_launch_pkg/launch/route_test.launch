@@ -1,0 +1,15 @@
+<launch>
+    <include file="$(find bluesea2)/launch/LDS-50C-R.launch"/>
+          
+    <include file="$(find cartographer_pkg)/launch/cartographer_basic.launch"/>
+    
+    <include file="$(find pid_control_pkg)/launch/position_pid_controller.launch"/>
+    
+    <node pkg="activity_control_pkg" type="route_test_node" name="route_test_node" launch-prefix= "bash -c 'sleep 5; $0 $@'" output="screen"/>
+    <node pkg="uart_to_stm32" type="uart_to_stm32_node" name="uart_to_stm32_node" launch-prefix= "bash -c 'sleep 6; $0 $@'" output="screen"/>
+    <node pkg="bluetooth2" type="bluetooth2_uart" name="bluetooth_uart" launch-prefix= "bash -c 'sleep 10; $0 $@'" output="screen"/>
+    <include file="$(find unencoder)/launch/decoder.launch"/>
+    <!-- 为需要GPIO访问权限的节点添加sudo权限 -->
+    <node pkg="laser_control" type="laser_control_node" name="laser_control_node" output="screen" />
+    <!-- <include file="$(find yolo)/launch/yolov5.launch"/> -->
+</launch>

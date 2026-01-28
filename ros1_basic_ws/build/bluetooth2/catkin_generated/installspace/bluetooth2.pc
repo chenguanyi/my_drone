@@ -1,0 +1,8 @@
+prefix=/home/orangepi/fly_ros1_ws/ros1_basic_ws/install
+
+Name: bluetooth2
+Description: Description of bluetooth2
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lbluetooth
+Requires: roscpp std_msgs serial_comm yolo geometry_msgs tf2_ros tf2_geometry_msgs

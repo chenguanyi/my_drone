@@ -1,0 +1,8 @@
+prefix=/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel
+
+Name: cartographer_pkg
+Description: Description of cartographer_pkg
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

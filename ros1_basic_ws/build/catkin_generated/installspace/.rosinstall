@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/orangepi/fly_ros1_ws/ros1_basic_ws/install/setup.sh

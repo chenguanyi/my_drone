@@ -1,0 +1,8 @@
+prefix=/home/orangepi/fly_ros1_ws/ros1_basic_ws/install
+
+Name: laser_control
+Description: Description of laser_control
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

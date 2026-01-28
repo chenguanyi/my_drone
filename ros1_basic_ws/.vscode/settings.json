@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "thread": "cpp",
+        "iomanip": "cpp",
+        "cmath": "cpp",
+        "chrono": "cpp",
+        "random": "cpp",
+        "limits": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "future": "cpp"
+    },
+    "cmake.sourceDirectory": "/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/top_launch_pkg"
+}

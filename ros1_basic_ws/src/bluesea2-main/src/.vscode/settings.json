@@ -1,0 +1,16 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/orangepi/manager_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        "/home/orangepi/catkin_ws/devel/lib/python3/dist-packages",
+        "/home/orangepi/carto/cartographer_ws/install_isolated/lib/python3/dist-packages",
+        "/home/orangepi/ws_livox/devel/lib/python3/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/orangepi/manager_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        "/home/orangepi/catkin_ws/devel/lib/python3/dist-packages",
+        "/home/orangepi/carto/cartographer_ws/install_isolated/lib/python3/dist-packages",
+        "/home/orangepi/ws_livox/devel/lib/python3/dist-packages"
+    ]
+}

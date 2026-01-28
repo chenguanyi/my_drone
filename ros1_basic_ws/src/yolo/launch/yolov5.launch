@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="yolo" type="yolov5_16.py" name="yolo_talker" output="screen">
+    </node>
+</launch>

@@ -1,0 +1,8 @@
+prefix=/home/orangepi/fly_ros1_ws/ros1_basic_ws/install
+
+Name: activity_control_pkg
+Description: Description of activity_control_pkg
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

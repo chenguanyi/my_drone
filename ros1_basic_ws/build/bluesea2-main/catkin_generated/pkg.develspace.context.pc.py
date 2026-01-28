@@ -1,0 +1,8 @@
+# generated from catkin/cmake/template/pkg.context.pc.in
+CATKIN_PACKAGE_PREFIX = ""
+PROJECT_PKG_CONFIG_INCLUDE_DIRS = "/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/include".split(';') if "/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/include" != "" else []
+PROJECT_CATKIN_DEPENDS = "message_runtime".replace(';', ' ')
+PKG_CONFIG_LIBRARIES_WITH_PREFIX = "".split(';') if "" != "" else []
+PROJECT_NAME = "bluesea2"
+PROJECT_SPACE_DIR = "/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel"
+PROJECT_VERSION = "1.0.0"

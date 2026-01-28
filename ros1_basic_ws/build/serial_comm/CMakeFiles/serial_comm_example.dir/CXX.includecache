@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/serial_comm/include/serial_comm/serial_comm.h
+boost/asio.hpp
+-
+boost/system/error_code.hpp
+-
+string
+-
+vector
+-
+memory
+-
+functional
+-
+thread
+-
+mutex
+-
+condition_variable
+-
+atomic
+-
+
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/serial_comm/src/example.cpp
+serial_comm/serial_comm.h
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/serial_comm/src/serial_comm/serial_comm.h
+iostream
+-
+vector
+-
+string
+-
+

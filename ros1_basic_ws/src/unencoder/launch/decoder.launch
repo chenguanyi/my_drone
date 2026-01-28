@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="unencoder" type="decoder.py" name="qr_decoder" output="screen">
+    </node>
+</launch>

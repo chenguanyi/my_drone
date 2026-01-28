@@ -1,0 +1,2 @@
+activity_control_pkg:bluesea2-main:bluetooth2:cartographer_pkg:laser_control:pid_control_pkg:serial_comm:top_launch_pkg:uart_to_stm32:unencoder:yolo
+-DCATKIN_DEVEL_PREFIX=/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel -DCMAKE_INSTALL_PREFIX=/home/orangepi/fly_ros1_ws/ros1_basic_ws/install -G Unix Makefiles
