@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# 24年省赛二维码解码节点
 import cv2
 import numpy as np
 from pyzbar import pyzbar
@@ -29,11 +30,16 @@ class QRDecoder:
         
     def decode_qr_codes(self, image):
         # 使用pyzbar解码二维码
+        # rospy.loginfo("开始处理图像帧...") 
         decoded_objects = pyzbar.decode(image)
-        
+        rospy.loginfo("进入decoder")
+        if len(decoded_objects) > 0:
+            rospy.loginfo(f"检测到 {len(decoded_objects)} 个二维码")
+
         for obj in decoded_objects:
             # 提取二维码数据
             data = obj.data.decode("utf-8")
+            rospy.loginfo(f"二维码原始数据字符串: '{data}'")
             # print("QR Code Data: ", data)
             
             # 发布二维码数据到话题，转换为decode
@@ -42,8 +48,11 @@ class QRDecoder:
             try:
                 # 如果整个数据是数字，则直接转换
                 qr_data_msg.data = int(data) if data.isdigit() else ord(data[0]) if data else 0
-
-                if((self.tar_position.data[0] == -110.0 and #到一些点不需要识别二维码(比如要旋转的点，最后扫完降落的点)
+                
+                # 安全检查：防止 tar_position 为空时索引越界
+                has_target = hasattr(self.tar_position, 'data') and len(self.tar_position.data) >= 4
+                
+                if has_target and ((self.tar_position.data[0] == -110.0 and #到一些点不需要识别二维码(比如要旋转的点，最后扫完降落的点)
                 self.tar_position.data[1] == 150.0 and
                 self.tar_position.data[2] == 132.0 and
                 self.tar_position.data[3] == 180.0) 
@@ -56,11 +65,15 @@ class QRDecoder:
                     self.tar_position.data[2] == 40.0 and
                     self.tar_position.data[3] == 180.0)):
                     qr_data_msg.is_valid = False
+                    rospy.loginfo("检测到特殊规避点位，将二维码标记为无效")
                 else:
                     qr_data_msg.is_valid = True
             except ValueError:
                 # 如果转换失败，则使用第一个字符的ASCII码值
                 qr_data_msg.data = ord(data[0]) if data else 0
+                rospy.logwarn(f"数据转换异常，使用首字符ASCII: {qr_data_msg.data}")
+            
+            rospy.loginfo(f"准备发布QR数据: val={qr_data_msg.data}, valid={qr_data_msg.is_valid}")
             self.qr_data_pub.publish(qr_data_msg)
             
             # 发布二维码中心坐标到话题
@@ -70,6 +83,8 @@ class QRDecoder:
             qr_position_msg.x = center_x
             qr_position_msg.y = center_y
             qr_position_msg.z = 0  # z轴设为0，因为我们处理的是2D图像
+            
+            rospy.loginfo(f"发布QR中心坐标: ({center_x}, {center_y})")
             self.qr_position_pub.publish(qr_position_msg)
             
             # 打印二维码像素坐标

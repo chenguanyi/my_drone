@@ -64,6 +64,12 @@ std_msgs/Int16.h
 std_msgs/Float32.h
 -
 
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/uart_to_stm32/src/uart_to_stm32_node.cpp
+ros/ros.h
+-
+uart_to_stm32.h
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/uart_to_stm32/src/uart_to_stm32.h
+
 /opt/ros/noetic/include/geometry_msgs/Point.h
 string
 -

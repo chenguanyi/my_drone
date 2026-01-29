@@ -325,19 +325,11 @@ bool PositionPIDController::isTargetReached()
             (std::abs(error_z_cm_) <= height_tolerance_ || !has_target_height_));
 }
 
-// PID处理函数 (输出单位: cm/s, 度/s)
-std_msgs::Float32MultiArray PositionPIDController::processPID(double dt)
+// ========== 简单工厂模式：辅助函数实现 ==========
+
+// 导航模式下的控制模式工厂：根据control_mode_计算XY速度
+void PositionPIDController::computeXYVelocityByControlMode(double dt, double& vel_x_cm, double& vel_y_cm)
 {
-    std_msgs::Float32MultiArray cmd_vel;
-    cmd_vel.data.resize(4);  // [vx_cm/s, vy_cm/s, vz_cm/s, vyaw_deg/s]
-    
-    calculateErrors();
-    
-    double vel_x_cm, vel_y_cm, vel_yaw_deg, vel_z_cm;
-    
-if (current_pid_mode_ == 0)//导航
-{
-    // 根据控制模式计算输出 (单位: cm/s)
     switch (control_mode_)
     {
         case NORMAL_MODE:
@@ -393,57 +385,115 @@ if (current_pid_mode_ == 0)//导航
             vel_x_cm = vel_y_cm = 0.0;
             break;
     }
-    
-    double vel_x_body,vel_y_body;//修改
-    double yaw_rad = degToRad(current_yaw_deg_);
-    vel_x_body = vel_x_cm * cos(yaw_rad) + vel_y_cm * sin(yaw_rad);
-    vel_y_body = -vel_x_cm * sin(yaw_rad) + vel_y_cm * cos(yaw_rad);
-    vel_x_cm = vel_x_body;
-    vel_y_cm = vel_y_body;
-
-    // Yaw控制 (度/s)
-    vel_yaw_deg = pid_yaw_.calculate(0.0, -error_yaw_deg_, dt);
-    
-
-    // Z轴控制 (cm/s)
-    if (has_target_height_)
-    {
-        vel_z_cm = pid_z_.calculate(target_z_cm_, current_z_cm_, dt);
-    }
-    else
-    {
-        vel_z_cm = 0.0;
-    }
-}else if (current_pid_mode_ == 1)//精调
-{
-
-    // X轴控制 (cm/s)
-    vel_x_cm = pid_x_.calculate(0.0, -error_x_cm_, dt);
-
-    // Y轴控制 (cm/s)
-    vel_y_cm = pid_y_.calculate(0.0, -error_y_cm_, dt);
-
-    // Yaw控制 (度/s)
-    vel_yaw_deg = pid_yaw_.calculate(0.0, -error_yaw_deg_, dt);
-    
-    // Z轴控制 (cm/s)
-    if (has_target_height_)
-    {
-        vel_z_cm = pid_z_.calculate(0.0, -error_z_cm_, dt);
-    }
-    else
-    {
-        vel_z_cm = 0.0;
-    }
 }
 
+// 机体坐标系转换：世界系速度转机体系
+void PositionPIDController::transformToBodyFrame(double& vel_x_cm, double& vel_y_cm)
+{
+    double yaw_rad = degToRad(current_yaw_deg_);
+    double vel_x_body = vel_x_cm * cos(yaw_rad) + vel_y_cm * sin(yaw_rad);
+    double vel_y_body = -vel_x_cm * sin(yaw_rad) + vel_y_cm * cos(yaw_rad);
+    vel_x_cm = vel_x_body;
+    vel_y_cm = vel_y_body;
+}
 
-    // 填充消息 [vx_cm/s, vy_cm/s, vz_cm/s, vyaw_deg/s]
-    cmd_vel.data[0] = vel_x_cm;
-    cmd_vel.data[1] = vel_y_cm;
-    cmd_vel.data[2] = vel_z_cm;
-    cmd_vel.data[3] = vel_yaw_deg;
-    ROS_INFO_THROTTLE(1, "PID output: [%.2f, %.2f, %.2f, %.2f]", vel_x_cm, vel_y_cm, vel_z_cm, vel_yaw_deg);
+// 统一的Yaw速度计算
+double PositionPIDController::computeYawVelocity(double dt)
+{
+    return pid_yaw_.calculate(0.0, -error_yaw_deg_, dt);
+}
+
+// 统一的Z轴速度计算
+double PositionPIDController::computeZVelocity(double dt)
+{
+    if (has_target_height_)
+    {
+        if (current_pid_mode_ == 0) // 导航模式
+        {
+            return pid_z_.calculate(target_z_cm_, current_z_cm_, dt);
+        }
+        else // 精调模式
+        {
+            return pid_z_.calculate(0.0, -error_z_cm_, dt);
+        }
+    }
+    return 0.0;
+}
+
+// 导航模式速度计算
+PositionPIDController::VelocityOutput PositionPIDController::computeNavigateModeVelocity(double dt)
+{
+    VelocityOutput vel = {0.0, 0.0, 0.0, 0.0};
+    
+    // Step 1: 根据control_mode_计算XY速度
+    computeXYVelocityByControlMode(dt, vel.vel_x_cm, vel.vel_y_cm);
+    
+    // Step 2: 世界坐标系转机体坐标系
+    transformToBodyFrame(vel.vel_x_cm, vel.vel_y_cm);
+    
+    // Step 3: 计算Yaw和Z速度
+    vel.vel_yaw_deg = computeYawVelocity(dt);
+    vel.vel_z_cm = computeZVelocity(dt);
+    
+    return vel;
+}
+
+// 精调模式速度计算
+PositionPIDController::VelocityOutput PositionPIDController::computeFineTuneModeVelocity(double dt)
+{
+    VelocityOutput vel = {0.0, 0.0, 0.0, 0.0};
+    
+    // 四轴PID直接计算（基于误差）
+    vel.vel_x_cm = pid_x_.calculate(0.0, -error_x_cm_, dt);
+    vel.vel_y_cm = pid_y_.calculate(0.0, -error_y_cm_, dt);
+    vel.vel_yaw_deg = computeYawVelocity(dt);
+    vel.vel_z_cm = computeZVelocity(dt);
+    
+    return vel;
+}
+
+// 填充速度消息
+std_msgs::Float32MultiArray PositionPIDController::fillCmdVelMessage(const VelocityOutput& vel)
+{
+    std_msgs::Float32MultiArray cmd_vel;
+    cmd_vel.data.resize(4);  // [vx_cm/s, vy_cm/s, vz_cm/s, vyaw_deg/s]
+    cmd_vel.data[0] = vel.vel_x_cm;
+    cmd_vel.data[1] = vel.vel_y_cm;
+    cmd_vel.data[2] = vel.vel_z_cm;
+    cmd_vel.data[3] = vel.vel_yaw_deg;
+    return cmd_vel;
+}
+
+// ========== 重构后的processPID：简单工厂模式入口 ==========
+// PID处理函数 (输出单位: cm/s, 度/s)
+std_msgs::Float32MultiArray PositionPIDController::processPID(double dt)
+{
+    // Step 1: 计算误差
+    calculateErrors();
+    
+    // Step 2: 根据PID模式选择策略（简单工厂）
+    VelocityOutput vel;
+    if (current_pid_mode_ == 0)
+    {
+        // 导航模式
+        vel = computeNavigateModeVelocity(dt);
+    }
+    else if (current_pid_mode_ == 1)
+    {
+        // 精调模式
+        vel = computeFineTuneModeVelocity(dt);
+    }
+    else
+    {
+        // 默认零速度
+        vel = {0.0, 0.0, 0.0, 0.0};
+    }
+    
+    // Step 3: 填充消息并输出日志
+    std_msgs::Float32MultiArray cmd_vel = fillCmdVelMessage(vel);
+    ROS_INFO_THROTTLE(1, "PID output: [%.2f, %.2f, %.2f, %.2f]", 
+                      vel.vel_x_cm, vel.vel_y_cm, vel.vel_z_cm, vel.vel_yaw_deg);
+    
     return cmd_vel;
 }
 

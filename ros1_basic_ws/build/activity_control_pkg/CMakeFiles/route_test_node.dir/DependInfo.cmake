@@ -24,7 +24,8 @@ set(CMAKE_CXX_TARGET_INCLUDE_PATH
 
 # Targets to which this target links.
 set(CMAKE_TARGET_LINKED_INFO_FILES
-  "/home/orangepi/fly_ros1_ws/ros1_basic_ws/build/activity_control_pkg/CMakeFiles/route_target_publisher_lib.dir/DependInfo.cmake"
+  "/home/orangepi/fly_ros1_ws/ros1_basic_ws/build/activity_control_pkg/CMakeFiles/qr_alignment_task_lib.dir/DependInfo.cmake"
+  "/home/orangepi/fly_ros1_ws/ros1_basic_ws/build/activity_control_pkg/CMakeFiles/waypoint_navigator_lib.dir/DependInfo.cmake"
   )
 
 # Fortran module output directory.

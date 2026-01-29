@@ -222,6 +222,34 @@ private:
     // PID处理函数
     std_msgs::Float32MultiArray processPID(double dt);
     
+    // ========== 简单工厂模式：PID模式策略 ==========
+    // 速度输出结构体
+    struct VelocityOutput {
+        double vel_x_cm;
+        double vel_y_cm;
+        double vel_z_cm;
+        double vel_yaw_deg;
+    };
+    
+    // 导航模式速度计算
+    VelocityOutput computeNavigateModeVelocity(double dt);
+    
+    // 精调模式速度计算
+    VelocityOutput computeFineTuneModeVelocity(double dt);
+    
+    // 导航模式下的控制模式工厂
+    void computeXYVelocityByControlMode(double dt, double& vel_x_cm, double& vel_y_cm);
+    
+    // 机体坐标系转换
+    void transformToBodyFrame(double& vel_x_cm, double& vel_y_cm);
+    
+    // 统一的Yaw/Z轴控制
+    double computeYawVelocity(double dt);
+    double computeZVelocity(double dt);
+    
+    // 填充并输出速度消息
+    std_msgs::Float32MultiArray fillCmdVelMessage(const VelocityOutput& vel);
+    
     // 角度归一化 (度)
     double normalizeAngleDeg(double angle_deg);
     

@@ -10,6 +10,7 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	std_msgs
+	geometry_msgs
 	tf
 )
 
@@ -102,7 +103,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package()
+catkin_package(
+	CATKIN_DEPENDS roscpp std_msgs geometry_msgs tf
+)
 
 ###########
 ## Build ##
@@ -115,12 +118,18 @@ include_directories(
 	${catkin_INCLUDE_DIRS}
 )
 
-## Declare a C++ library for the route target publisher
-add_library(route_target_publisher_lib
-	src/route_target_publisher.cpp
+## Declare C++ libraries for waypoint navigation and task logic
+add_library(waypoint_navigator_lib
+	src/waypoint_navigator.cpp
 )
-add_dependencies(route_target_publisher_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(route_target_publisher_lib ${catkin_LIBRARIES})
+add_dependencies(waypoint_navigator_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(waypoint_navigator_lib ${catkin_LIBRARIES})
+
+add_library(qr_alignment_task_lib
+	src/qr_alignment_task.cpp
+)
+add_dependencies(qr_alignment_task_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(qr_alignment_task_lib waypoint_navigator_lib ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -130,7 +139,7 @@ target_link_libraries(route_target_publisher_lib ${catkin_LIBRARIES})
 ## Declare a C++ executable
 add_executable(route_test_node src/route_test_node.cpp)
 add_dependencies(route_test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(route_test_node route_target_publisher_lib ${catkin_LIBRARIES})
+target_link_libraries(route_test_node waypoint_navigator_lib qr_alignment_task_lib ${catkin_LIBRARIES})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
