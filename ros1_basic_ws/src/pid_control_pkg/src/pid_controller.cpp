@@ -2,6 +2,7 @@
 #include <tf/transform_datatypes.h>
 #include <angles/angles.h>
 #include <cmath>
+#include <activity_control_pkg/qr_constants.h>  // 统一的二维码常量
 
 // PID控制器类实现
 PIDController::PIDController(double kp, double ki, double kd, double max_output, double min_output, 
@@ -122,9 +123,12 @@ PositionPIDController::PositionPIDController()
       max_slow_vel_(20.0),
       control_mode_(NORMAL_MODE),
       current_pid_mode_(0),
-      qr_target_x_(320),
-      qr_target_y_(170)
+      qr_target_x_(qr_constants::QR_TARGET_X),
+      qr_target_y_(qr_constants::QR_TARGET_Y),
+      qr_data_timeout_(qr_constants::QR_DATA_TIMEOUT)
 {
+    // 初始化二维码数据时间戳
+    last_qr_update_time_ = ros::Time::now();
     // 加载参数
     loadParameters();
     // 订阅目标位置
@@ -148,6 +152,7 @@ PositionPIDController::PositionPIDController()
         qr_offset_x_ = msg->x;
         qr_offset_y_ = msg->y;
         has_qr_offset_ = true;
+        last_qr_update_time_ = ros::Time::now();  // 更新时间戳
     }    
     );
     // 初始化发布器 - 发布4个浮点数 [vx_cm/s, vy_cm/s, vz_cm/s, vyaw_deg/s]
@@ -169,6 +174,12 @@ void PositionPIDController::loadParameters()
     // 坐标系参数
     private_nh_.param("map_frame", map_frame_, std::string("map"));
     private_nh_.param("laser_link_frame", laser_link_frame_, std::string("laser_link"));
+    // 二维码目标像素坐标参数（精调模式使用）
+    private_nh_.param("qr_target_x", qr_target_x_, qr_constants::QR_TARGET_X);
+    private_nh_.param("qr_target_y", qr_target_y_, qr_constants::QR_TARGET_Y);
+    // 先对准航向再平移的角度阈值
+    private_nh_.param("yaw_first_threshold_deg", yaw_first_threshold_deg_, 15.0);
+    ROS_INFO("QR target pixel: (%.1f, %.1f)", qr_target_x_, qr_target_y_);
 
     //导航模式参数设置
     private_nh_.param("navigate/kp_xy",navigate_params_.kp_xy,0.8);
@@ -188,7 +199,7 @@ void PositionPIDController::loadParameters()
     private_nh_.param("navigate/min_vertical_velocity",navigate_params_.min_vertical_vel,-40.0);
     private_nh_.param("navigate/Xpos_tolerance",navigate_params_.Xpos_tolerance,6.0);
     private_nh_.param("navigate/Ypos_tolerance",navigate_params_.Ypos_tolerance,6.0);
-    private_nh_.param("navigate/yaw_tolerance",navigate_params_.yaw_tolerance,5.0);
+    private_nh_.param("navigate/yaw_tolerance",navigate_params_.yaw_tolerance,0.3);
     private_nh_.param("navigate/height_tolerance",navigate_params_.height_tolerance,6.0);
     ROS_INFO("Navigate PID Parameters loaded:");
     //精调模式参数集 
@@ -202,14 +213,14 @@ void PositionPIDController::loadParameters()
     private_nh_.param("fine_tune/ki_z",fine_tune_params_.ki_z,0.0);
     private_nh_.param("fine_tune/kd_z",fine_tune_params_.kd_z,0.1);
     private_nh_.param("fine_tune/max_linear_velocity",fine_tune_params_.max_linear_vel,6.0);
-    private_nh_.param("fine_tune/max_angular_velocity",fine_tune_params_.max_angular_vel,-6.0);
+    private_nh_.param("fine_tune/max_angular_velocity",fine_tune_params_.max_angular_vel,6.0);
     private_nh_.param("fine_tune/max_vertical_velocity",fine_tune_params_.max_vertical_vel,6.0);
     private_nh_.param("fine_tune/min_linear_velocity",fine_tune_params_.min_linear_vel,-6.0);
-    private_nh_.param("fine_tune/min_angular_velocity",fine_tune_params_.min_angular_vel,6.0);
+    private_nh_.param("fine_tune/min_angular_velocity",fine_tune_params_.min_angular_vel,-6.0);
     private_nh_.param("fine_tune/min_vertical_velocity",fine_tune_params_.min_vertical_vel,-6.0);
     private_nh_.param("fine_tune/Xpos_tolerance",fine_tune_params_.Xpos_tolerance,20.0);//单位像素
     private_nh_.param("fine_tune/Ypos_tolerance",fine_tune_params_.Ypos_tolerance,6.0);//单位cm
-    private_nh_.param("fine_tune/yaw_tolerance",fine_tune_params_.yaw_tolerance,5.0);//单位度
+    private_nh_.param("fine_tune/yaw_tolerance",fine_tune_params_.yaw_tolerance,0.3);//单位度
     private_nh_.param("fine_tune/height_tolerance",fine_tune_params_.height_tolerance,20.0);//单位像素
     ROS_INFO("Fine tune PID Parameters loaded:");
 
@@ -297,6 +308,9 @@ void PositionPIDController::calculateErrors()
         // 计算yaw误差（归一化到-180到180度范围）
         error_yaw_deg_ = normalizeAngleDeg(target_yaw_deg_ - current_yaw_deg_);
 
+        // 重置精调模式的二维码有效标志
+        has_qr_offset_ = false;
+
         // Z轴误差 (cm)
         if (has_target_height_)
         {
@@ -308,10 +322,28 @@ void PositionPIDController::calculateErrors()
         }
     }else if(current_pid_mode_ == 1)
     {
-        error_x_cm_ = qr_target_x_ - qr_offset_x_;
-        error_z_cm_ = -(qr_target_y_ - qr_offset_y_);
+        // 精调模式：检测二维码数据是否超时
+        double qr_age = (ros::Time::now() - last_qr_update_time_).toSec();
+        bool qr_data_valid = has_qr_offset_ && (qr_age < qr_data_timeout_);
+        
+        // 只有在二维码数据有效时才计算误差
+        if (qr_data_valid && (qr_offset_x_ > 0.0 || qr_offset_y_ > 0.0))
+        {
+            error_x_cm_ = qr_target_x_ - qr_offset_x_;
+            error_z_cm_ = -(qr_target_y_ - qr_offset_y_);
+        }
+        else
+        {
+            // 二维码数据无效或超时，X和Z误差设为0（悬停）
+            error_x_cm_ = 0.0;
+            error_z_cm_ = 0.0;
+            if (qr_age > qr_data_timeout_) {
+                ROS_WARN_THROTTLE(1.0, "[PID] 二维码数据超时(%.2fs)，悬停等待", qr_age);
+            }
+        }
 
         error_y_cm_ = target_y_cm_ - current_y_cm_;
+        // 精调模式下 yaw 保持目标角度不变，计算误差用于PID控制
         error_yaw_deg_ = normalizeAngleDeg(target_yaw_deg_ - current_yaw_deg_);
     }
 }
@@ -445,7 +477,9 @@ PositionPIDController::VelocityOutput PositionPIDController::computeFineTuneMode
     
     // 四轴PID直接计算（基于误差）
     vel.vel_x_cm = pid_x_.calculate(0.0, -error_x_cm_, dt);
-    vel.vel_y_cm = pid_y_.calculate(0.0, -error_y_cm_, dt);
+    double pid_y_out = pid_y_.calculate(0.0, -error_y_cm_, dt);
+    vel.vel_y_cm = pid_y_out * cos(degToRad(current_yaw_deg_));
+    // 精调模式下 yaw 保持目标角度，用PID控制
     vel.vel_yaw_deg = computeYawVelocity(dt);
     vel.vel_z_cm = computeZVelocity(dt);
     
@@ -488,8 +522,15 @@ std_msgs::Float32MultiArray PositionPIDController::processPID(double dt)
         // 默认零速度
         vel = {0.0, 0.0, 0.0, 0.0};
     }
+
+    // Step 3: 先对准航向再平移
+    if (std::abs(error_yaw_deg_) > yaw_first_threshold_deg_)
+    {
+        vel.vel_x_cm = 0.0;
+        vel.vel_y_cm = 0.0;
+    }
     
-    // Step 3: 填充消息并输出日志
+    // Step 4: 填充消息并输出日志
     std_msgs::Float32MultiArray cmd_vel = fillCmdVelMessage(vel);
     ROS_INFO_THROTTLE(1, "PID output: [%.2f, %.2f, %.2f, %.2f]", 
                       vel.vel_x_cm, vel.vel_y_cm, vel.vel_z_cm, vel.vel_yaw_deg);
@@ -531,8 +572,9 @@ void PositionPIDController::controlLoop()
         {
             cmd_vel.data[0] = 0.0;
             cmd_vel.data[1] = 0.0;
-            cmd_vel.data[2] = 100.0;
+            cmd_vel.data[2] = -30.0;  // 负值表示下降
             cmd_vel.data[3] = 0.0;
+            ROS_WARN_THROTTLE(1.0, "[PID] 降落模式: z_vel=-30cm/s");
         }
         target_velocity_pub_.publish(cmd_vel);
         
@@ -566,6 +608,11 @@ void PositionPIDController::pidModeCallback(const std_msgs::UInt8::ConstPtr& msg
             applyPIDParams(fine_tune_params_);
             ROS_INFO("Switch to Fine Tune Mode");
         }
+        pid_x_.reset();
+        pid_y_.reset();
+        pid_z_.reset();
+        pid_yaw_.reset();
+        pid_xy_speed_.reset();
     }
 }
 
@@ -582,6 +629,18 @@ void PositionPIDController::applyPIDParams(const PIDParams params)
     pid_z_.setOutputLimits(params.max_vertical_vel, params.min_vertical_vel);
     pid_yaw_.setOutputLimits(params.max_angular_vel, params.min_angular_vel);
     pid_xy_speed_.setOutputLimits(params.max_linear_vel, params.min_linear_vel);
+
+    max_linear_vel_ = params.max_linear_vel;
+    max_angular_vel_ = params.max_angular_vel;
+    max_vertical_vel_ = params.max_vertical_vel;
+
+    Xpos_tolerance_ = params.Xpos_tolerance;
+    Ypos_tolerance_ = params.Ypos_tolerance;
+    yaw_tolerance_ = params.yaw_tolerance;
+    height_tolerance_ = params.height_tolerance;
+
+    // 设置yaw死区，误差小于yaw_tolerance时不产生速度
+    pid_yaw_.setDeadzone(params.yaw_tolerance);
 }
 
 // 主函数

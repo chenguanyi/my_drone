@@ -6,6 +6,8 @@
 
 #IncludeRegexTransform: 
 
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/qr_constants.h
+
 /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/pid_control_pkg/include/pid_controller.h
 ros/ros.h
 -
@@ -38,6 +40,8 @@ tf/transform_datatypes.h
 angles/angles.h
 -
 cmath
+-
+activity_control_pkg/qr_constants.h
 -
 
 /opt/ros/noetic/include/angles/angles.h

@@ -29,6 +29,8 @@ tf/transform_datatypes.h
 -
 cmath
 -
+sstream
+-
 
 /opt/ros/noetic/include/geometry_msgs/Point.h
 string

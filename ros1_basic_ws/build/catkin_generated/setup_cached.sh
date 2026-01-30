@@ -7,4 +7,7 @@
 # new environment variables
 
 # modified environment variables
+export CMAKE_PREFIX_PATH="/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel:$CMAKE_PREFIX_PATH"
 export PWD='/home/orangepi/fly_ros1_ws/ros1_basic_ws/build'
+export ROSLISP_PACKAGE_DIRECTORIES="/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
+export ROS_PACKAGE_PATH="/home/orangepi/fly_ros1_ws/ros1_basic_ws/src:$ROS_PACKAGE_PATH"

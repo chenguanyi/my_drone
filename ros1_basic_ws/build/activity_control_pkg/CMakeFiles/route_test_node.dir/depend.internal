@@ -3,6 +3,7 @@
 
 activity_control_pkg/CMakeFiles/route_test_node.dir/src/route_test_node.cpp.o
  /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/qr_alignment_task.h
+ /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/qr_constants.h
  /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/waypoint_navigator.h
  /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/src/route_test_node.cpp
  /opt/ros/noetic/include/geometry_msgs/Point.h

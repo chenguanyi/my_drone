@@ -178,6 +178,7 @@ private:
     double control_frequency_; // 控制频率
     std::string map_frame_;    // 地图坐标系
     std::string laser_link_frame_; //激光雷达坐标系
+    double yaw_first_threshold_deg_; // 先对准航向的角度阈值
 
     //当前pid模式(0导航，1精调)
     uint8_t current_pid_mode_;
@@ -204,6 +205,8 @@ private:
     double qr_offset_y_;
     double qr_target_x_;
     double qr_target_y_;
+    ros::Time last_qr_update_time_;  // 二维码数据最后更新时间
+    double qr_data_timeout_;          // 二维码数据超时阈值（秒）
 
     // 回调函数
     void targetPositionCallback(const std_msgs::Float32MultiArray::ConstPtr& msg);

@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
         if not args.local:
             # environment at generation time
-            CMAKE_PREFIX_PATH = r'/opt/ros/noetic;/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel;/home/orangepi/fly_ros1_ws/cartographer_ws/install_isolated'.split(';')
+            CMAKE_PREFIX_PATH = r'/home/orangepi/fly_ros1_ws/cartographer_ws/install_isolated;/home/orangepi/manager_ws/devel;/opt/ros/noetic;/home/orangepi/catkin_ws/devel;/home/orangepi/carto/cartographer_ws/install_isolated;/home/orangepi/ws_livox/devel'.split(';')
         else:
             # don't consider any other prefix path than this one
             CMAKE_PREFIX_PATH = []

@@ -91,9 +91,9 @@ endif()
 # flag project as catkin-based to distinguish if a find_package()-ed project is a catkin project
 set(activity_control_pkg_FOUND_CATKIN_PROJECT TRUE)
 
-if(NOT " " STREQUAL " ")
+if(NOT "/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include " STREQUAL " ")
   set(activity_control_pkg_INCLUDE_DIRS "")
-  set(_include_dirs "")
+  set(_include_dirs "/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include")
   if(NOT " " STREQUAL " ")
     set(_report "Check the issue tracker '' and consider creating a ticket if the problem has not been reported yet.")
   elseif(NOT " " STREQUAL " ")
@@ -156,7 +156,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/lib;/opt/ros/noetic/lib;/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/lib;/home/orangepi/fly_ros1_ws/cartographer_ws/install_isolated/lib)
+    foreach(path /home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/lib;/home/orangepi/fly_ros1_ws/cartographer_ws/install_isolated/lib;/home/orangepi/manager_ws/devel/lib;/opt/ros/noetic/lib;/home/orangepi/catkin_ws/devel/lib;/home/orangepi/carto/cartographer_ws/install_isolated/lib;/home/orangepi/ws_livox/devel/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

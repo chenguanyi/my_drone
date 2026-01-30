@@ -3,6 +3,6 @@ prefix=/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel
 Name: activity_control_pkg
 Description: Description of activity_control_pkg
 Version: 0.0.0
-Cflags: 
+Cflags: -I/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include
 Libs: -L${prefix}/lib 
 Requires: roscpp std_msgs geometry_msgs tf

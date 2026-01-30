@@ -17,8 +17,14 @@ geometry_msgs/Point.h
 -
 vector
 -
+deque
+-
 activity_control_pkg/waypoint_navigator.h
 /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/activity_control_pkg/waypoint_navigator.h
+activity_control_pkg/qr_constants.h
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/activity_control_pkg/qr_constants.h
+
+/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/qr_constants.h
 
 /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include/activity_control_pkg/waypoint_navigator.h
 ros/ros.h
@@ -40,6 +46,8 @@ mutex
 activity_control_pkg/qr_alignment_task.h
 /home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/src/activity_control_pkg/qr_alignment_task.h
 cmath
+-
+algorithm
 -
 
 /opt/ros/noetic/include/geometry_msgs/Point.h

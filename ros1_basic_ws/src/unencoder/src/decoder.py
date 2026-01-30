@@ -2,6 +2,7 @@
 # 24年省赛二维码解码节点
 import cv2
 import numpy as np
+import tf
 from pyzbar import pyzbar
 import rospy
 from sensor_msgs.msg import Image
@@ -15,6 +16,9 @@ from std_msgs.msg import Float32MultiArray
 class QRDecoder:
     def __init__(self):
         self.bridge = CvBridge()
+        self.tf_listener = tf.TransformListener()
+        self.tf_source_frame = rospy.get_param("~tf_source_frame", "/map")
+        self.tf_target_frame = rospy.get_param("~tf_target_frame", "/laser_link")
         # 发布二维码数据的话题
         self.qr_data_pub = rospy.Publisher("/qr_code_data", decode, queue_size=10)
         # 发布二维码像素坐标的话题
@@ -23,23 +27,45 @@ class QRDecoder:
         self.tar_position_sub = rospy.Subscriber("/target_position", Float32MultiArray, self.target_callback)
         # 初始化tar_position变量
         self.tar_position = Float32MultiArray()
+        # 记录已识别过的二维码内容，避免重复日志
+        self.detected_qr_codes = set()
     
     def target_callback(self, data):
         # 更新tar_position变量
         self.tar_position = data
         
     def decode_qr_codes(self, image):
+        # 获取 TF 坐标并显示
+        try:
+            self.tf_listener.waitForTransform(
+                self.tf_source_frame,
+                self.tf_target_frame,
+                rospy.Time(0),
+                rospy.Duration(0.05)
+            )
+            (trans, rot) = self.tf_listener.lookupTransform(
+                self.tf_source_frame,
+                self.tf_target_frame,
+                rospy.Time(0)
+            )
+            tf_text = "Pos: ({:.2f}, {:.2f}, {:.2f})".format(trans[0], trans[1], trans[2])
+            cv2.putText(image, tf_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException, tf.Exception):
+            rospy.logwarn_throttle(2.0, f"TF获取失败: {self.tf_source_frame} -> {self.tf_target_frame}")
+
         # 使用pyzbar解码二维码
-        # rospy.loginfo("开始处理图像帧...") 
         decoded_objects = pyzbar.decode(image)
-        rospy.loginfo("进入decoder")
-        if len(decoded_objects) > 0:
-            rospy.loginfo(f"检测到 {len(decoded_objects)} 个二维码")
+        current_error_text = None
 
         for obj in decoded_objects:
             # 提取二维码数据
             data = obj.data.decode("utf-8")
-            rospy.loginfo(f"二维码原始数据字符串: '{data}'")
+            
+            # 判断是否为首次识别到该二维码
+            is_first_detection = data not in self.detected_qr_codes
+            if is_first_detection:
+                self.detected_qr_codes.add(data)
+                rospy.loginfo(f"[首次识别] 二维码内容: '{data}'")
             # print("QR Code Data: ", data)
             
             # 发布二维码数据到话题，转换为decode
@@ -48,32 +74,15 @@ class QRDecoder:
             try:
                 # 如果整个数据是数字，则直接转换
                 qr_data_msg.data = int(data) if data.isdigit() else ord(data[0]) if data else 0
-                
-                # 安全检查：防止 tar_position 为空时索引越界
-                has_target = hasattr(self.tar_position, 'data') and len(self.tar_position.data) >= 4
-                
-                if has_target and ((self.tar_position.data[0] == -110.0 and #到一些点不需要识别二维码(比如要旋转的点，最后扫完降落的点)
-                self.tar_position.data[1] == 150.0 and
-                self.tar_position.data[2] == 132.0 and
-                self.tar_position.data[3] == 180.0) 
-                or (self.tar_position.data[0] == -220.0 and 
-                    self.tar_position.data[1] == 300.0 and
-                    self.tar_position.data[2] == 124.0 and
-                    self.tar_position.data[3] == 180.0) 
-                or (self.tar_position.data[0] == -220.0 and 
-                    self.tar_position.data[1] == 300.0 and
-                    self.tar_position.data[2] == 40.0 and
-                    self.tar_position.data[3] == 180.0)):
-                    qr_data_msg.is_valid = False
-                    rospy.loginfo("检测到特殊规避点位，将二维码标记为无效")
-                else:
-                    qr_data_msg.is_valid = True
+                qr_data_msg.is_valid = True
             except ValueError:
                 # 如果转换失败，则使用第一个字符的ASCII码值
                 qr_data_msg.data = ord(data[0]) if data else 0
-                rospy.logwarn(f"数据转换异常，使用首字符ASCII: {qr_data_msg.data}")
+                if is_first_detection:
+                    rospy.logwarn(f"数据转换异常，使用首字符ASCII: {qr_data_msg.data}")
             
-            rospy.loginfo(f"准备发布QR数据: val={qr_data_msg.data}, valid={qr_data_msg.is_valid}")
+            if is_first_detection:
+                rospy.loginfo(f"发布QR数据: val={qr_data_msg.data}, valid={qr_data_msg.is_valid}")
             self.qr_data_pub.publish(qr_data_msg)
             
             # 发布二维码中心坐标到话题
@@ -84,7 +93,9 @@ class QRDecoder:
             qr_position_msg.y = center_y
             qr_position_msg.z = 0  # z轴设为0，因为我们处理的是2D图像
             
-            rospy.loginfo(f"发布QR中心坐标: ({center_x}, {center_y})")
+            # 坐标持续发布（用于PID控制），但日志仅首次输出
+            if is_first_detection:
+                rospy.loginfo(f"发布QR中心坐标: ({center_x}, {center_y})")
             self.qr_position_pub.publish(qr_position_msg)
             
             # 打印二维码像素坐标
@@ -112,6 +123,29 @@ class QRDecoder:
             center_y = obj.rect.top + obj.rect.height / 2
             position_text = f"({int(center_x)}, {int(center_y)})"
             cv2.putText(image, position_text, (int(center_x), int(center_y) - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+
+            # 计算并记录当前误差（像素）用于实时显示
+            err_x = center_x - 380
+            err_y = center_y - 170
+            err_mag = np.sqrt(err_x * err_x + err_y * err_y)
+            current_error_text = f"Err(px): dx={err_x:.1f} dy={err_y:.1f} mag={err_mag:.1f}"
+        
+        # 绘制中心点和误差圆
+        center_point = (380, 170)
+        align_error = float(rospy.get_param('qr_align_error', 100))
+        
+        # 中心点（红色激光点）
+        cv2.circle(image, center_point, 3, (0, 0, 255), -1)
+        # 误差圆
+        cv2.circle(image, center_point, int(align_error), (0, 255, 0), 2)
+        # 文字标注
+        cv2.putText(image, f"Error: {align_error:.1f}", (center_point[0] + int(align_error) + 5, center_point[1]), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # 若检测到二维码，显示当前误差
+        if current_error_text:
+            cv2.putText(image, current_error_text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
         return image
     
 def main():

@@ -1,6 +1,7 @@
 #include "activity_control_pkg/waypoint_navigator.h"
 #include <tf/transform_datatypes.h>
 #include <cmath>
+#include <sstream>
 
 namespace {
 inline double meterToCm(double m) { return m * 100.0; }
@@ -33,13 +34,32 @@ WaypointNavigator::WaypointNavigator(ros::NodeHandle &nh,
            map_frame_.c_str(), laser_link_frame_.c_str(), output_topic_.c_str());
 }
 
+// 等待 TF 可用
+bool WaypointNavigator::waitForTransform(const ros::Duration &timeout) {
+  if (listener_.waitForTransform(map_frame_, laser_link_frame_, ros::Time(0), timeout)) {
+    ROS_INFO("[WaypointNavigator] TF 已就绪 (%s->%s)", map_frame_.c_str(), laser_link_frame_.c_str());
+    return true;
+  }
+  std::vector<std::string> frames;
+  listener_.getFrameStrings(frames);
+  std::ostringstream oss;
+  for (std::size_t i = 0; i < frames.size(); ++i) {
+    if (i > 0) oss << ", ";
+    oss << frames[i];
+  }
+  ROS_WARN("[WaypointNavigator] TF 等待超时 (%s->%s), 已知帧: [%s]",
+           map_frame_.c_str(), laser_link_frame_.c_str(), oss.str().c_str());
+  return false;
+}
+
 // 添加目标点
-void WaypointNavigator::addTarget(double x, double y, double z, double yaw) {
+void WaypointNavigator::addTarget(double x, double y, double z, double yaw, bool skip_processing) {
   Target t;
   t.x_cm = x;
   t.y_cm = y;
   t.z_cm = z;
   t.yaw_deg = yaw;
+  t.skip_processing = skip_processing;
 
   std::lock_guard<std::mutex> lock(mutex_);
   const bool was_empty = targets_.empty();
@@ -155,7 +175,14 @@ bool WaypointNavigator::getCurrentPose(double &x_cm, double &y_cm, double &z_cm,
     yaw_deg = radToDeg(yaw);
     return true;
   } catch (tf::TransformException &ex) {
-    ROS_WARN_THROTTLE(2.0, "TF 查询失败 (%s->%s): %s", map_frame_.c_str(), laser_link_frame_.c_str(), ex.what());
+    const bool map_exists = listener_.frameExists(map_frame_);
+    const bool laser_exists = listener_.frameExists(laser_link_frame_);
+    const bool can_tf = listener_.canTransform(map_frame_, laser_link_frame_, ros::Time(0));
+    const double now_sec = ros::Time::now().toSec();
+    ROS_WARN_THROTTLE(2.0,
+                      "TF 查询失败 (%s->%s): %s | now=%.3f map_exists=%d laser_exists=%d canTransform=%d has_height=%d",
+                      map_frame_.c_str(), laser_link_frame_.c_str(), ex.what(),
+                      now_sec, map_exists, laser_exists, can_tf, has_height_ ? 1 : 0);
     return false;
   }
 }
@@ -168,7 +195,15 @@ bool WaypointNavigator::isReached(const Target &t, double x_cm, double y_cm, dou
   double dz = t.z_cm - z_cm;
   double dyaw = normalizeAngleDeg(t.yaw_deg - yaw_deg);
   bool z_ok = has_height_ ? (std::fabs(dz) <= height_tol_cm_) : false;
-  return z_ok && (dxy <= pos_tol_cm_) && (std::fabs(dyaw) <= yaw_tol_deg_);
+  bool xy_ok = (dxy <= pos_tol_cm_);
+  bool yaw_ok = (std::fabs(dyaw) <= yaw_tol_deg_);
+  
+  ROS_INFO_THROTTLE(2.0, "[Navigator] 到点检查: dxy=%.1fcm(%s) dz=%.1fcm(%s) dyaw=%.1f°(%s)",
+                    dxy, xy_ok ? "OK" : "NG",
+                    dz, z_ok ? "OK" : "NG", 
+                    dyaw, yaw_ok ? "OK" : "NG");
+  
+  return z_ok && xy_ok && yaw_ok;
 }
 
 // 分段降落
@@ -176,22 +211,39 @@ void WaypointNavigator::startSegmentedLanding() {
   double x, y, z, yaw;
   std::lock_guard<std::mutex> lock(mutex_);
 
-  // 获取当前无人机实时位置
-  if (!getCurrentPose(x, y, z, yaw)) {
-    ROS_WARN("[WaypointNavigator] 无法获取当前位姿（TF缺失），忽略降落请求！");
-    return;
+  // 优先使用最后一个航点作为降落基准
+  if (!targets_.empty()) {
+    const Target &last = targets_.back();
+    x = last.x_cm;
+    y = last.y_cm;
+    z = last.z_cm;
+    yaw = last.yaw_deg;
+  } else {
+    // 无航点时才退回到当前位姿
+    if (!waitForTransform(ros::Duration(2.0))) {
+      ROS_WARN("[WaypointNavigator] TF 未就绪，忽略降落请求！");
+      return;
+    }
+    if (!getCurrentPose(x, y, z, yaw)) {
+      ROS_WARN("[WaypointNavigator] 无法获取当前位姿（TF缺失），忽略降落请求！");
+      return;
+    }
   }
-  //添加降落航点到末尾
+  // 添加降落航点到末尾 (降落航点跳过处理)
+  const bool trigger_start = targets_.empty();
+  addTarget(x, y, z - 50.0, yaw, true);
+  addTarget(x, y, z - 100.0, yaw, true);
+  // 特殊航点 (-1,-1,-1,-1) 触发PID降落模式
+  addTarget(-1.0, -1.0, -1.0, -1.0, true);
 
-  ROS_INFO("[WaypointNavigator] 启动分段降落! 基准位置: x=%.1f, y=%.1f, z=%.1f", x, y, z);
+  if (trigger_start) {
+    current_idx_ = 0;
+    publishCurrent();
+  }
 
-  // 构建分段降落路径（保持 x, y, yaw 不变）
-  if (z > 55.0) {
-    addTarget(x, y, 50.0, yaw);
-  }
-  if(z > 10.0) {
-    addTarget(x, y, 10.0, yaw);
-  }
+  ROS_INFO("[WaypointNavigator] 分段降落路径已规划，最后触发降落模式");
+  
+  
 }
 
 } // namespace activity_control_pkg

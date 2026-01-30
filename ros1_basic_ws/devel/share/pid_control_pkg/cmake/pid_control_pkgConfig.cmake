@@ -156,7 +156,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/lib;/opt/ros/noetic/lib;/home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/lib;/home/orangepi/fly_ros1_ws/cartographer_ws/install_isolated/lib)
+    foreach(path /home/orangepi/fly_ros1_ws/ros1_basic_ws/devel/lib;/home/orangepi/fly_ros1_ws/cartographer_ws/install_isolated/lib;/home/orangepi/manager_ws/devel/lib;/opt/ros/noetic/lib;/home/orangepi/catkin_ws/devel/lib;/home/orangepi/carto/cartographer_ws/install_isolated/lib;/home/orangepi/ws_livox/devel/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

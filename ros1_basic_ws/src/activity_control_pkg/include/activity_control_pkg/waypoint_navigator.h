@@ -16,6 +16,7 @@ struct Target {
   double y_cm;     // 目标 Y（cm）
   double z_cm;     // 目标 Z（cm）
   double yaw_deg;  // 航向角（度）
+  bool skip_processing{false};  // 是否跳过后续处理（到达即下一个）
 };
 
 /**
@@ -46,8 +47,9 @@ public:
    * @param y Y坐标(cm)
    * @param z Z坐标(cm)
    * @param yaw 航向角(度)
+   * @param skip_processing 是否跳过后续处理(默认false)
    */
-  void addTarget(double x, double y, double z, double yaw);
+  void addTarget(double x, double y, double z, double yaw, bool skip_processing = false);
 
   /**
    * @brief 清除所有航点
@@ -100,6 +102,13 @@ public:
    * @return 是否到达
    */
   bool isReached(const Target &t, double x_cm, double y_cm, double z_cm, double yaw_deg);
+
+  /**
+   * @brief 等待 TF 可用
+   * @param timeout 超时
+   * @return 是否在超时内可用
+   */
+  bool waitForTransform(const ros::Duration &timeout);
 
   // ========== 发布接口 ==========
 

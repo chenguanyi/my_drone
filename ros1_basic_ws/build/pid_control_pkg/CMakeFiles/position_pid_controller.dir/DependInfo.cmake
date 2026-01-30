@@ -18,6 +18,7 @@ set(CMAKE_TARGET_DEFINITIONS_CXX
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
   "/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/pid_control_pkg/include"
+  "/home/orangepi/fly_ros1_ws/ros1_basic_ws/src/activity_control_pkg/include"
   "/opt/ros/noetic/include"
   "/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp"
   "/usr/include/eigen3"
